@@ -13,15 +13,43 @@ export const getAdminDashboard = async (req, res) => {
 
     const stats = await analyticsService.getGlobalAnalytics();
 
+    // Fetch at-risk students dynamically
+    const allStudents = await Student.findAll({ include: [Class] });
+    const atRiskStudentsList = [];
+    let csRiskCount = 0;
+    let mathRiskCount = 0;
+    let sciRiskCount = 0;
+
+    for (const s of allStudents) {
+      const studentStats = await analyticsService.getStudentAnalytics(s.id);
+      if (studentStats.riskLevel === 'High' || studentStats.riskLevel === 'Medium') {
+        const dept = s.Class ? s.Class.name.replace('Class ', '') : 'Computer Science';
+        if (dept.includes('CS') || dept.includes('Computer')) csRiskCount++;
+        else if (dept.includes('MATH') || dept.includes('Math')) mathRiskCount++;
+        else sciRiskCount++;
+
+        atRiskStudentsList.push({
+          id: s.id,
+          name: `${s.firstName} ${s.lastName}`,
+          rollNo: s.studentId,
+          department: dept,
+          cgpa: parseFloat(((studentStats.academicSummary.academicHealth / 100) * 4.0).toFixed(2)),
+          riskLevel: studentStats.riskLevel,
+          weakSubject: studentStats.weakSubjects[0]?.subject || 'None',
+          attendance: parseFloat(studentStats.academicSummary.attendanceRate.toFixed(1))
+        });
+      }
+    }
+
     // Calculate department performance dynamically
     const mathAvg = await analyticsService.getCourseAveragePerformance(1); // MATH101
     const csAvg = await analyticsService.getCourseAveragePerformance(2); // CS101
     const sciAvg = await analyticsService.getCourseAveragePerformance(3); // SCI102
 
     const departmentPerformance = [
-      { department: 'Computer Science', avgScore: parseFloat((csAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((csAvg.attendance || 0).toFixed(1)), riskCount: 0 },
-      { department: 'Mathematics', avgScore: parseFloat((mathAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((mathAvg.attendance || 0).toFixed(1)), riskCount: 1 },
-      { department: 'Natural Sciences', avgScore: parseFloat((sciAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((sciAvg.attendance || 0).toFixed(1)), riskCount: 1 }
+      { department: 'Computer Science', avgScore: parseFloat((csAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((csAvg.attendance || 0).toFixed(1)), riskCount: csRiskCount },
+      { department: 'Mathematics', avgScore: parseFloat((mathAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((mathAvg.attendance || 0).toFixed(1)), riskCount: mathRiskCount },
+      { department: 'Natural Sciences', avgScore: parseFloat((sciAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((sciAvg.attendance || 0).toFixed(1)), riskCount: sciRiskCount }
     ];
 
     // Fetch recent activity logs
@@ -67,7 +95,8 @@ export const getAdminDashboard = async (req, res) => {
         critical: 0
       },
       departmentPerformance,
-      recentActivities
+      recentActivities,
+      atRiskStudentsList
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);

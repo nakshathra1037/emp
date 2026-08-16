@@ -27,7 +27,12 @@ export const getStudentDashboard = async (req, res) => {
       department: studentDb.Class ? studentDb.Class.name.replace('Class ', '') : 'Computer Science',
       semester: 5,
       cgpa: cgpa,
-      weakSubject: stats.weakSubjects[0]?.subject || 'None'
+      weakSubject: stats.weakSubjects[0]?.subject || 'None',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      phone: '+1 (555) 019-2834',
+      guardianName: 'Arthur Stone',
+      guardianPhone: '+1 (555) 019-5832',
+      academicRisk: stats.riskLevel
     };
 
     // Fetch enrollments
