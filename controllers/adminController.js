@@ -84,7 +84,25 @@ export const getAdminStudents = async (req, res) => {
         Class
       ]
     });
-    return res.status(200).json(students);
+
+    const mappedStudents = [];
+    for (const s of students) {
+      const stats = await analyticsService.getStudentAnalytics(s.id);
+      const cgpa = parseFloat(((stats.academicSummary.academicHealth / 100) * 4.0).toFixed(2));
+      
+      mappedStudents.push({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`,
+        rollNo: s.studentId,
+        email: s.User ? s.User.email : 'student@edupulse.edu',
+        department: s.Class ? s.Class.name.replace('Class ', '') : 'Computer Science',
+        semester: 5,
+        cgpa: cgpa,
+        academicRisk: stats.riskLevel
+      });
+    }
+
+    return res.status(200).json(mappedStudents);
   } catch (error) {
     console.error('Admin students error:', error);
     return res.status(500).json({ error: 'Internal server error loading student records.' });
@@ -95,9 +113,39 @@ export const getAdminStudents = async (req, res) => {
 export const getAdminTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.findAll({
-      include: [{ model: User, attributes: ['email', 'role'] }]
+      include: [
+        { model: User, attributes: ['email', 'role'] },
+        Course
+      ]
     });
-    return res.status(200).json(teachers);
+
+    const mappedTeachers = teachers.map(t => {
+      const courses = t.Courses || [];
+      const coursesAssigned = courses.map(c => c.code);
+
+      // Determine a mock designation and department based on their seeded courses
+      let designation = 'Associate Professor';
+      let department = 'Computer Science';
+      if (coursesAssigned.some(code => code.includes('MATH'))) {
+        designation = 'Professor';
+        department = 'Mathematics';
+      } else if (coursesAssigned.some(code => code.includes('SCI'))) {
+        designation = 'Assistant Professor';
+        department = 'Natural Sciences';
+      }
+
+      return {
+        id: t.id,
+        name: `${t.firstName} ${t.lastName}`,
+        avatar: t.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        designation,
+        email: t.User ? t.User.email : 'faculty@edupulse.edu',
+        department,
+        coursesAssigned
+      };
+    });
+
+    return res.status(200).json(mappedTeachers);
   } catch (error) {
     console.error('Admin teachers error:', error);
     return res.status(500).json({ error: 'Internal server error loading teacher records.' });
