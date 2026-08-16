@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const res = await apiService.login(email, password, role);
-      if (res.success && res.user) {
+      if (res && res.user) {
         setUser(res.user);
         localStorage.setItem('edupulse_user', JSON.stringify(res.user));
         localStorage.setItem('edupulse_auth_token', res.token || 'mock_token');
