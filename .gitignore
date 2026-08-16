@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# EduPulse Backend ignores
+db/edupulse.sqlite
+db/edupulse.sqlite.bak
+.env
