@@ -13,17 +13,61 @@ export const getAdminDashboard = async (req, res) => {
 
     const stats = await analyticsService.getGlobalAnalytics();
 
+    // Calculate department performance dynamically
+    const mathAvg = await analyticsService.getCourseAveragePerformance(1); // MATH101
+    const csAvg = await analyticsService.getCourseAveragePerformance(2); // CS101
+    const sciAvg = await analyticsService.getCourseAveragePerformance(3); // SCI102
+
+    const departmentPerformance = [
+      { department: 'Computer Science', avgScore: parseFloat((csAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((csAvg.attendance || 0).toFixed(1)), riskCount: 0 },
+      { department: 'Mathematics', avgScore: parseFloat((mathAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((mathAvg.attendance || 0).toFixed(1)), riskCount: 1 },
+      { department: 'Natural Sciences', avgScore: parseFloat((sciAvg.overall || 0).toFixed(1)), attendanceAvg: parseFloat((sciAvg.attendance || 0).toFixed(1)), riskCount: 1 }
+    ];
+
+    // Fetch recent activity logs
+    const logs = await ActivityLog.findAll({
+      order: [['timestamp', 'DESC']],
+      limit: 5,
+      include: [{ model: User, attributes: ['email', 'role'] }]
+    });
+
+    const recentActivities = logs.map(log => {
+      const diffMs = new Date() - new Date(log.timestamp);
+      const diffMins = Math.floor(diffMs / 60000);
+      let timeStr = 'Just now';
+      if (diffMins > 0 && diffMins < 60) {
+        timeStr = `${diffMins} mins ago`;
+      } else if (diffMins >= 60) {
+        timeStr = `${Math.floor(diffMins / 60)} hours ago`;
+      }
+
+      const userName = log.User ? log.User.email : 'System';
+      const userRole = log.User ? log.User.role : 'System';
+      const capitalizedRole = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+
+      return {
+        id: `act-${log.id}`,
+        time: timeStr,
+        user: userName,
+        role: capitalizedRole,
+        action: `${log.action.replace(/_/g, ' ')}: ${log.details || ''}`
+      };
+    });
+
     return res.status(200).json({
-      summary: {
-        totalStudents: studentCount,
-        totalTeachers: teacherCount,
-        totalCourses: courseCount,
-        totalClasses: classCount
+      totalStudents: studentCount,
+      totalTeachers: teacherCount,
+      totalCourses: courseCount,
+      activeClasses: classCount,
+      campusAcademicHealthIndex: stats.averageAcademicHealth,
+      riskDistribution: {
+        low: stats.riskDistribution.Low || 0,
+        medium: stats.riskDistribution.Medium || 0,
+        high: stats.riskDistribution.High || 0,
+        critical: 0
       },
-      averageAcademicHealth: stats.averageAcademicHealth,
-      averageAttendanceRate: stats.averageAttendanceRate,
-      riskDistribution: stats.riskDistribution,
-      trendDistribution: stats.trendDistribution
+      departmentPerformance,
+      recentActivities
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
