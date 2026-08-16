@@ -7,7 +7,7 @@ import { Modal } from '../../components/common/Modal';
 
 export const LoginPage = () => {
   const [role, setRole] = useState('student');
-  const [email, setEmail] = useState('alex.mercer@edupulse.edu');
+  const [email, setEmail] = useState('student.charlie@edupulse.edu');
   const [password, setPassword] = useState('password123');
   const [rememberMe, setRememberMe] = useState(true);
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -21,8 +21,8 @@ export const LoginPage = () => {
   const handleRoleChange = (selectedRole) => {
     setRole(selectedRole);
     setFormError('');
-    if (selectedRole === 'student') setEmail('alex.mercer@edupulse.edu');
-    else if (selectedRole === 'teacher') setEmail('sarah.jenkins@edupulse.edu');
+    if (selectedRole === 'student') setEmail('student.charlie@edupulse.edu');
+    else if (selectedRole === 'teacher') setEmail('teacher.smith@edupulse.edu');
     else if (selectedRole === 'admin') setEmail('admin@edupulse.edu');
   };
 

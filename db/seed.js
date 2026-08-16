@@ -29,17 +29,17 @@ export const seedDatabase = async () => {
     // 2. Create Users
     const users = await User.bulkCreate([
       { email: 'admin@edupulse.edu', passwordHash, role: 'admin' },
-      { email: 'teacher.smith@edupulse.edu', passwordHash, role: 'teacher' },
+      { email: 'sarah.jenkins@edupulse.edu', passwordHash, role: 'teacher' },
       { email: 'teacher.jones@edupulse.edu', passwordHash, role: 'teacher' },
-      { email: 'student.alice@edupulse.edu', passwordHash, role: 'student' },
+      { email: 'alex.mercer@edupulse.edu', passwordHash, role: 'student' },
       { email: 'student.bob@edupulse.edu', passwordHash, role: 'student' },
       { email: 'student.charlie@edupulse.edu', passwordHash, role: 'student' }
     ]);
 
     const adminUser = users[0];
-    const teacherSmithUser = users[1];
+    const teacherSmithUser = users[1]; // Sarah Jenkins
     const teacherJonesUser = users[2];
-    const aliceUser = users[3];
+    const aliceUser = users[3]; // Alex Mercer
     const bobUser = users[4];
     const charlieUser = users[5];
 
@@ -54,8 +54,8 @@ export const seedDatabase = async () => {
     // 4. Create Teacher Profiles
     const smithTeacher = await Teacher.create({
       userId: teacherSmithUser.id,
-      firstName: 'John',
-      lastName: 'Smith',
+      firstName: 'Sarah',
+      lastName: 'Jenkins',
       employeeId: 'TCH-101'
     });
 
@@ -82,8 +82,8 @@ export const seedDatabase = async () => {
     // 6. Create Student Profiles
     const alice = await Student.create({
       userId: aliceUser.id,
-      firstName: 'Alice',
-      lastName: 'Green',
+      firstName: 'Alex',
+      lastName: 'Mercer',
       studentId: 'STU-1001',
       classId: classA.id
     });

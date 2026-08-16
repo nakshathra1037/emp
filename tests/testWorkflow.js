@@ -77,7 +77,7 @@ const executeTestSuite = async () => {
   res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'teacher.smith@edupulse.edu', password: 'password123' })
+    body: JSON.stringify({ email: 'sarah.jenkins@edupulse.edu', password: 'password123' })
   });
   assert(res.status === 200, 'Teacher login should succeed');
   data = await res.json();
