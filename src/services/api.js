@@ -265,12 +265,23 @@ export const apiService = {
     const resolvedId = resolveTeacherId(teacherId);
     return apiRequest(`/teacher/ai-insights?teacherId=${resolvedId}`, {}, (db) => {
       return {
-        studentsNeedingAttention: db.adminAnalytics.atRiskStudentsList,
-        classWeakSubjects: [
-          { subject: 'MATH-202 Discrete Math', weakCount: 14, avgScore: '58%' },
-          { subject: 'CS-305 Machine Learning', weakCount: 5, avgScore: '74%' },
+        classAverageScore: 78,
+        atRiskCount: db.adminAnalytics.atRiskStudentsList.length,
+        weakSubjectClusters: [
+          { topic: 'MATH-202 Discrete Math', percentage: 14 },
+          { topic: 'CS-305 Machine Learning', percentage: 5 }
         ],
-        teacherInterventions: db.aiStudentIntelligence.aiRecommendations,
+        interventionRecommendations: db.aiStudentIntelligence.aiRecommendations.map(r => r.title),
+        studentAttentionList: db.adminAnalytics.atRiskStudentsList.map(st => ({
+          id: st.id,
+          name: st.name,
+          rollNo: st.rollNo,
+          riskLevel: st.riskLevel,
+          weakSubject: st.weakSubject,
+          attendance: st.attendance,
+          examScore: 62,
+          aiRecommendation: 'Provide discrete math tutorial session.'
+        }))
       };
     });
   },
