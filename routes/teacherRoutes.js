@@ -10,7 +10,8 @@ import {
   updateAssignment,
   evaluateSubmission,
   createExamination,
-  enterExamMarks
+  enterExamMarks,
+  getTeacherAIInsights
 } from '../controllers/teacherController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { validateBody, validateAttendance, validateAssignment, validateExamMarks } from '../middleware/validation.js';
@@ -25,6 +26,7 @@ router.get('/dashboard', getTeacherDashboard);
 router.get('/courses', getTeacherCourses);
 router.get('/classes', getTeacherClasses);
 router.get('/students', getTeacherStudents);
+router.get('/ai-insights', getTeacherAIInsights);
 
 // Attendance routes
 router.post('/attendance', validateBody(validateAttendance), recordAttendance);

@@ -1,5 +1,7 @@
 import { Teacher, Course, Student, Class, Enrollment, Attendance, Assignment, AssignmentSubmission, Examination, ExamResult } from '../models/index.js';
 import { logActivity } from '../utils/activityLogger.js';
+import aiService from '../services/aiService.js';
+import analyticsService from '../services/analyticsService.js';
 
 // Verify teacher ownership of course
 const verifyCourseTeacher = async (courseId, teacherId) => {
@@ -383,5 +385,73 @@ export const enterExamMarks = async (req, res) => {
   } catch (error) {
     console.error('Enter marks error:', error);
     return res.status(500).json({ error: 'Internal server error saving exam results.' });
+  }
+};
+
+// Aggregated teacher-class level AI insights for frontend component
+export const getTeacherAIInsights = async (req, res) => {
+  try {
+    const classId = 1; // Default seeded class ID
+    const classData = await analyticsService.getClassAnalytics(classId);
+    
+    const subjectTally = {};
+    const attentionList = [];
+    
+    for (const stud of classData.studentsList) {
+      const stats = await analyticsService.getStudentAnalytics(stud.id);
+      
+      // If student is at risk, fetch their diagnostic suggestions
+      if (stud.riskLevel === 'High' || stud.riskLevel === 'Medium') {
+        const studentAnalysis = await aiService.getStudentAnalysis(stud.id);
+        const weakSub = stats.weakSubjects[0]?.subject || 'None';
+        
+        attentionList.push({
+          id: stud.id,
+          name: `${stud.firstName} ${stud.lastName}`,
+          rollNo: stud.studentId,
+          riskLevel: stud.riskLevel,
+          weakSubject: weakSub,
+          attendance: stats.academicSummary.attendanceRate,
+          examScore: stats.academicSummary.examinationScore,
+          aiRecommendation: studentAnalysis.aiAnalysis.recommendedAction
+        });
+      }
+      
+      stats.weakSubjects.forEach(ws => {
+        subjectTally[ws.subject] = (subjectTally[ws.subject] || 0) + 1;
+      });
+    }
+
+    const weakClusters = Object.entries(subjectTally).map(([subject, count]) => {
+      const pct = classData.totalStudents > 0 ? (count / classData.totalStudents) * 100 : 0;
+      return {
+        topic: subject,
+        percentage: parseFloat(pct.toFixed(0))
+      };
+    }).sort((a, b) => b.percentage - a.percentage);
+
+    if (weakClusters.length === 0) {
+      weakClusters.push({ topic: 'No major weak subjects detected', percentage: 0 });
+    }
+
+    // Compile recommendations
+    const recommendations = [];
+    attentionList.forEach(st => {
+      recommendations.push(`Provide classroom academic intervention for ${st.name} in ${st.weakSubject}.`);
+    });
+    if (recommendations.length === 0) {
+      recommendations.push('Class performance is strong. Keep encouraging interactive peer study groups.');
+    }
+
+    return res.status(200).json({
+      classAverageScore: classData.averageHealth,
+      atRiskCount: classData.atRiskCount,
+      weakSubjectClusters: weakClusters,
+      interventionRecommendations: recommendations,
+      studentAttentionList: attentionList
+    });
+  } catch (error) {
+    console.error('getTeacherAIInsights error:', error);
+    return res.status(500).json({ error: 'Internal server error computing AI insights.' });
   }
 };

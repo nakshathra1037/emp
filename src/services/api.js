@@ -45,6 +45,38 @@ async function apiRequest(endpoint, options = {}, mockFallbackFn) {
   }
 }
 
+const getLoggedInUser = () => {
+  const stored = localStorage.getItem('edupulse_user');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const resolveStudentId = (id) => {
+  if (id === 'std_101' || !id) {
+    const user = getLoggedInUser();
+    if (user && user.role === 'student' && user.studentId) {
+      return user.studentId;
+    }
+  }
+  return id;
+};
+
+const resolveTeacherId = (id) => {
+  if (id === 'tch_201' || !id) {
+    const user = getLoggedInUser();
+    if (user && user.role === 'teacher' && user.teacherId) {
+      return user.teacherId;
+    }
+  }
+  return id;
+};
+
 export const apiService = {
   // --- AUTHENTICATION ---
   async login(email, password, role) {
@@ -97,7 +129,8 @@ export const apiService = {
 
   // --- STUDENT ENDPOINTS ---
   async getStudentDashboard(studentId = 'std_101') {
-    return apiRequest(`/student/dashboard?studentId=${studentId}`, {}, (db) => {
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/student/dashboard?studentId=${resolvedId}`, {}, (db) => {
       const student = db.students.find((s) => s.id === studentId) || db.students[0];
       return {
         student,
@@ -110,11 +143,13 @@ export const apiService = {
   },
 
   async getStudentAttendance(studentId = 'std_101') {
-    return apiRequest(`/student/attendance?studentId=${studentId}`, {}, (db) => db.attendance);
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/student/attendance?studentId=${resolvedId}`, {}, (db) => db.attendance);
   },
 
   async getStudentAssignments(studentId = 'std_101') {
-    return apiRequest(`/student/assignments?studentId=${studentId}`, {}, (db) => db.assignments);
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/student/assignments?studentId=${resolvedId}`, {}, (db) => db.assignments);
   },
 
   async submitAssignment(assignmentId, submissionText) {
@@ -136,15 +171,18 @@ export const apiService = {
   },
 
   async getStudentExams(studentId = 'std_101') {
-    return apiRequest(`/student/exams?studentId=${studentId}`, {}, (db) => db.examinations);
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/student/exams?studentId=${resolvedId}`, {}, (db) => db.examinations);
   },
 
   async getStudentAIIntelligence(studentId = 'std_101') {
-    return apiRequest(`/ai/student/${studentId}/analysis`, {}, (db) => db.aiStudentIntelligence);
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/ai/student/${resolvedId}/analysis`, {}, (db) => db.aiStudentIntelligence);
   },
 
   async getStudentReport(studentId = 'std_101') {
-    return apiRequest(`/ai/student/${studentId}/report`, {}, (db) => {
+    const resolvedId = resolveStudentId(studentId);
+    return apiRequest(`/ai/student/${resolvedId}/report`, {}, (db) => {
       const student = db.students.find((s) => s.id === studentId) || db.students[0];
       return {
         reportId: `REP-${student.rollNo}-${Date.now().toString().slice(-4)}`,
@@ -160,7 +198,8 @@ export const apiService = {
 
   // --- TEACHER ENDPOINTS ---
   async getTeacherDashboard(teacherId = 'tch_201') {
-    return apiRequest(`/teacher/dashboard?teacherId=${teacherId}`, {}, (db) => {
+    const resolvedId = resolveTeacherId(teacherId);
+    return apiRequest(`/teacher/dashboard?teacherId=${resolvedId}`, {}, (db) => {
       const teacher = db.teachers.find((t) => t.id === teacherId) || db.teachers[0];
       return {
         teacher,
@@ -174,7 +213,8 @@ export const apiService = {
   },
 
   async getTeacherStudents(teacherId = 'tch_201') {
-    return apiRequest(`/teacher/students?teacherId=${teacherId}`, {}, (db) => db.students);
+    const resolvedId = resolveTeacherId(teacherId);
+    return apiRequest(`/teacher/students?teacherId=${resolvedId}`, {}, (db) => db.students);
   },
 
   async recordAttendance(courseId, date, attendanceMap) {
@@ -222,7 +262,8 @@ export const apiService = {
   },
 
   async getTeacherAIInsights(teacherId = 'tch_201') {
-    return apiRequest(`/teacher/ai-insights?teacherId=${teacherId}`, {}, (db) => {
+    const resolvedId = resolveTeacherId(teacherId);
+    return apiRequest(`/teacher/ai-insights?teacherId=${resolvedId}`, {}, (db) => {
       return {
         studentsNeedingAttention: db.adminAnalytics.atRiskStudentsList,
         classWeakSubjects: [
