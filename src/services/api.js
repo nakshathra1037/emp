@@ -35,8 +35,6 @@ async function apiRequest(endpoint, options = {}, mockFallbackFn) {
     }
     return await res.json();
   } catch (err) {
-    // console.warn(`API call failed for ${endpoint}. Falling back to high-fidelity mock service.`, err.message);
-    // Simulate brief network delay for realism
     await new Promise((resolve) => setTimeout(resolve, 150));
     if (mockFallbackFn) {
       return mockFallbackFn(getMockState());
@@ -84,7 +82,6 @@ export const apiService = {
       method: 'POST',
       body: JSON.stringify({ email, password, role }),
     }, (db) => {
-      // Mock Login logic
       let user = null;
       if (role === 'student') {
         user = db.students.find((s) => s.email.toLowerCase() === email.toLowerCase()) || db.students[0];
@@ -265,23 +262,23 @@ export const apiService = {
     const resolvedId = resolveTeacherId(teacherId);
     return apiRequest(`/teacher/ai-insights?teacherId=${resolvedId}`, {}, (db) => {
       return {
-        classAverageScore: 78,
+        classAverageScore: 74,
         atRiskCount: db.adminAnalytics.atRiskStudentsList.length,
         weakSubjectClusters: [
-          { topic: 'MATH-202 Discrete Math', percentage: 14 },
-          { topic: 'CS-305 Machine Learning', percentage: 5 }
+          { topic: 'Discrete Math & Matrix Proofs', percentage: 42, subjectCode: 'MATH-202' },
+          { topic: 'Graph Traversal & BFS/DFS', percentage: 28, subjectCode: 'CS-301' },
         ],
-        interventionRecommendations: db.aiStudentIntelligence.aiRecommendations.map(r => r.title),
-        studentAttentionList: db.adminAnalytics.atRiskStudentsList.map(st => ({
+        interventionRecommendations: db.aiStudentIntelligence.aiRecommendations,
+        studentAttentionList: db.adminAnalytics.atRiskStudentsList.map((st) => ({
           id: st.id,
           name: st.name,
           rollNo: st.rollNo,
           riskLevel: st.riskLevel,
           weakSubject: st.weakSubject,
           attendance: st.attendance,
-          examScore: 62,
-          aiRecommendation: 'Provide discrete math tutorial session.'
-        }))
+          examScore: st.examScore,
+          aiRecommendation: 'Schedule 1-on-1 problem-solving tutorial session and assign remedial problem set.',
+        })),
       };
     });
   },
