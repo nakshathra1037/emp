@@ -1,49 +1,100 @@
 import { Student, Enrollment, Course, Assignment, AssignmentSubmission, Attendance, Examination, ExamResult, AcademicRecord, Class, User } from '../models/index.js';
 import { logActivity } from '../utils/activityLogger.js';
+import aiService from '../services/aiService.js';
+import analyticsService from '../services/analyticsService.js';
 
 // Student Dashboard Summary
 export const getStudentDashboard = async (req, res) => {
   const studentId = req.user.studentId;
 
   try {
-    const student = await Student.findByPk(studentId, { include: [Class] });
-    
-    // Enrollments
+    const studentDb = await Student.findByPk(studentId, { include: [Class] });
+    if (!studentDb) {
+      return res.status(404).json({ error: 'Student record not found.' });
+    }
+
+    const stats = await analyticsService.getStudentAnalytics(studentId);
+    const aiAnalysis = await aiService.getStudentAnalysis(studentId);
+
+    // Compute dynamic CGPA (Scale overall performance health index to 4.0 GPA scale)
+    const cgpa = parseFloat(((stats.academicSummary.academicHealth / 100) * 4.0).toFixed(2));
+
+    const studentSchema = {
+      id: studentDb.id,
+      name: `${studentDb.firstName} ${studentDb.lastName}`,
+      rollNo: studentDb.studentId,
+      email: req.user.email,
+      department: studentDb.Class ? studentDb.Class.name.replace('Class ', '') : 'Computer Science',
+      semester: 5,
+      cgpa: cgpa,
+      weakSubject: stats.weakSubjects[0]?.subject || 'None'
+    };
+
+    // Fetch enrollments
     const enrollments = await Enrollment.findAll({
       where: { studentId, status: 'enrolled' },
       include: [Course]
     });
     const courseIds = enrollments.map(e => e.courseId);
 
-    // Recent Grades
-    const recentGrades = await ExamResult.findAll({
-      where: { studentId },
-      limit: 5,
-      order: [['createdAt', 'DESC']],
-      include: [{ model: Examination, include: [Course] }]
-    });
+    const coursesSchema = enrollments.map(e => ({
+      id: e.Course.id,
+      code: e.Course.code,
+      name: e.Course.name,
+      schedule: e.Course.scheduleInfo || 'Mon-Fri 9:00 AM - 1:00 PM'
+    }));
 
-    // Upcoming Assignments (Due after now)
-    const upcomingAssignments = await Assignment.findAll({
+    // Fetch assignments and check submission statuses
+    const assignments = await Assignment.findAll({
       where: { courseId: courseIds },
-      order: [['dueDate', 'ASC']],
-      limit: 5,
       include: [Course]
     });
 
+    const submissions = await AssignmentSubmission.findAll({
+      where: { studentId }
+    });
+
+    const assignmentsSchema = assignments.map(a => {
+      const sub = submissions.find(s => s.assignmentId === a.id);
+      let status = 'Pending';
+      let earnedPoints = null;
+      if (sub) {
+        status = sub.status === 'graded' ? 'Graded' : 'Submitted';
+        earnedPoints = sub.score;
+      }
+
+      return {
+        id: a.id,
+        courseCode: a.Course.code,
+        title: a.title,
+        dueDate: a.dueDate,
+        totalPoints: a.maxPoints,
+        status,
+        earnedPoints
+      };
+    });
+
+    const aiSummarySchema = {
+      overallPerformanceScore: Math.round(aiAnalysis.aiAnalysis.academicHealth || stats.academicSummary.academicHealth),
+      metrics: {
+        attendancePct: Math.round(stats.academicSummary.attendanceRate),
+        assignmentAvg: Math.round(stats.academicSummary.assignmentScore),
+        examAvg: Math.round(stats.academicSummary.examinationScore)
+      },
+      academicRiskLevel: aiAnalysis.aiAnalysis.riskLevel,
+      riskColor: aiAnalysis.aiAnalysis.riskLevel === 'High' ? '#dc2626' : 
+                 aiAnalysis.aiAnalysis.riskLevel === 'Medium' ? '#f59e0b' : '#10b981',
+      weakSubjects: stats.weakSubjects.map(ws => ({
+        reason: ws.reason
+      }))
+    };
+
     return res.status(200).json({
-      student,
-      enrolledCoursesCount: enrollments.length,
-      courses: enrollments.map(e => e.Course),
-      recentGrades: recentGrades.map(g => ({
-        examName: g.Examination.name,
-        courseName: g.Examination.Course.name,
-        pointsObtained: g.pointsObtained,
-        maxPoints: g.Examination.maxPoints,
-        grade: g.grade,
-        remarks: g.remarks
-      })),
-      upcomingAssignments
+      student: studentSchema,
+      courses: coursesSchema,
+      assignments: assignmentsSchema,
+      aiSummary: aiSummarySchema,
+      enrolledCoursesCount: coursesSchema.length
     });
   } catch (error) {
     console.error('Student dashboard error:', error);
